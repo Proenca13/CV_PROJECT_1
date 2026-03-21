@@ -1,1 +1,4 @@
 development_set/
+.venv/
+output
+.DS_store
