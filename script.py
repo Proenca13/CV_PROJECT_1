@@ -147,6 +147,20 @@ def warp_to_top_view(original_image, corners, pad_x=70, pad_y=50, tilt_correctio
     return warped_image
 
 
+def get_top_view(image):
+    """
+    Given a BGR image, return a top-down perspective-corrected view of the
+    pool table, or None if any step fails.
+    """
+    raw_mask   = get_table_mask(image)
+    clean_mask = isolate_largest_blob(raw_mask)
+
+    corners = get_table_corners(clean_mask)
+    if corners is None:
+        return None
+
+    return warp_to_top_view(image, corners)
+
 # ─────────────────────────────────────────────
 #  MAIN PIPELINE
 # ─────────────────────────────────────────────
@@ -170,36 +184,23 @@ def process_images(input_json: str, output_dir: str):
 
     for path in image_paths:
         filename = os.path.basename(path)
-        print(f"Processing {filename} …", end=" ")
+        print(f"Processing {filename}", end=" ")
 
         image = cv2.imread(path)
         if image is None:
-            print(f"FAILED (could not read image)")
+            print("FAILED (could not read image)")
             results.append({"image": filename, "error": "could not read image"})
             continue
 
-        # Step 1 – table mask
-        raw_mask   = get_table_mask(image)
-        clean_mask = isolate_largest_blob(raw_mask)
-
-        # Step 2 – corner detection
-        corners = get_table_corners(clean_mask)
-        if corners is None:
-            print("FAILED (corners not found)")
-            results.append({"image": filename, "error": "corners not found"})
-            continue
-
-        # Step 3 – perspective warp
-        top_view = warp_to_top_view(image, corners)
+        top_view = get_top_view(image)
         if top_view is None:
-            print("FAILED (warp failed)")
-            results.append({"image": filename, "error": "warp failed"})
+            print("FAILED (top view could not be produced)")
+            results.append({"image": filename, "error": "top view could not be produced"})
             continue
 
-        # Step 4 – save top-view image
         out_path = os.path.join(output_dir, filename)
         cv2.imwrite(out_path, top_view)
-        print(f"OK  →  {out_path}")
+        print(f"→  {out_path}")
 
         results.append({"image": filename, "top_view": out_path})
 
