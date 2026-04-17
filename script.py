@@ -339,7 +339,7 @@ def process_images(input_json: str, output_dir: str):
         cv2.imwrite(out_path, top_view)
 
         # 2. Ball count on the ORIGINAL image
-        circles, _ = detect_balls(image)
+        circles, bboxes = detect_balls(image)
         num_balls  = len(circles)
 
         print(f"→  {out_path}  |  balls: {num_balls}")
