@@ -17,21 +17,19 @@ def preprocess_lighting(hsv_image):
     return cv2.merge((h, s, v_eq))
 
 
-def get_table_mask(image):
+def get_table_mask(image,tol):
     """Return a binary mask of the table felt by sampling the dominant colour."""
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
     hsv = preprocess_lighting(hsv)
     h, w = image.shape[:2]
 
-    # Sample from 5 inner points to avoid picking up ball colours
     points = [
-        (h // 2,           w // 2),
-        (int(h * 0.4),     int(w * 0.4)),
-        (int(h * 0.4),     int(w * 0.6)),
-        (int(h * 0.6),     int(w * 0.4)),
-        (int(h * 0.6),     int(w * 0.6)),
+        (h // 2, w // 2),  # Center
+        (int(h * 0.4), int(w * 0.4)),  # Top-Left inner
+        (int(h * 0.4), int(w * 0.6)),  # Top-Right inner
+        (int(h * 0.6), int(w * 0.4)),  # Bottom-Left inner
+        (int(h * 0.6), int(w * 0.6))  # Bottom-Right inner
     ]
-
     samples = []
     for py, px in points:
         patch = hsv[py - 20:py + 20, px - 20:px + 20]
@@ -40,10 +38,9 @@ def get_table_mask(image):
     all_samples = np.vstack(samples)
     median_hsv = np.median(all_samples, axis=(0, 1))
 
-    tol = np.array([15, 80, 80])
+    tol = np.array(tol)
     lower = np.clip(median_hsv - tol, 0, 255).astype(np.uint8)
     upper = np.clip(median_hsv + tol, 0, 255).astype(np.uint8)
-
     return cv2.inRange(hsv, lower, upper)
 
 
@@ -152,7 +149,8 @@ def get_top_view(image):
     Given a BGR image, return a top-down perspective-corrected view of the
     pool table, or None if any step fails.
     """
-    raw_mask   = get_table_mask(image)
+    top_view_tol = np.array([15, 80, 80])
+    raw_mask   = get_table_mask(image,top_view_tol)
     clean_mask = isolate_largest_blob(raw_mask)
 
     corners = get_table_corners(clean_mask)
